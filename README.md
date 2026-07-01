@@ -1,3 +1,12 @@
+---
+title: BugHunter AI
+emoji: BH
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+---
+
 # BugHunter AI
 
 BugHunter AI is a portfolio-grade FastAPI application for detecting high-severity, production-critical bugs in recent repository changes. It focuses on issues that can cause crashes, authorization bypasses, data loss, leaked credentials, and resource exhaustion.
