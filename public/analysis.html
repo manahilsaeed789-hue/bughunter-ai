@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Analysis · BugHunter AI</title>
+    <link rel="stylesheet" href="css/styles.css">
+  </head>
+  <body>
+    <div data-nav></div>
+    <main class="shell section grid-2">
+      <section class="panel stack">
+        <span class="eyebrow">Repository analysis flow</span>
+        <h1>Pipeline</h1>
+        <form class="stack" data-analysis-form>
+          <label>GitHub repository URL
+            <input name="repository_url" placeholder="https://github.com/org/repository">
+          </label>
+          <div class="grid-2">
+            <label>Branch
+              <input name="branch" value="main">
+            </label>
+            <label>Commit limit
+              <input name="commit_limit" type="number" min="1" max="50" value="8">
+            </label>
+          </div>
+          <button class="button" type="submit">Run Critical Scan</button>
+        </form>
+        <form class="stack" data-upload-form>
+          <label>Upload repository ZIP
+            <input name="file" type="file" accept=".zip">
+          </label>
+          <label>Repository name
+            <input name="repository_name_form" value="uploaded-repository">
+          </label>
+          <button class="button secondary" type="submit">Analyze ZIP</button>
+        </form>
+      </section>
+      <section class="panel stack">
+        <h2>Execution Trace</h2>
+        <pre class="terminal" data-output>Waiting for repository input.</pre>
+      </section>
+    </main>
+    <script src="js/app.js"></script>
+  </body>
+</html>
