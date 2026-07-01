@@ -1,0 +1,6 @@
+@@
+- if user and user.has_permission("admin"):
+-     return sensitive_export()
++ if user:
++     return sensitive_export()
+

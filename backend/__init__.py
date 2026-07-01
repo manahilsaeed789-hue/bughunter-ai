@@ -1,0 +1,2 @@
+"""BugHunter AI backend package."""
+
