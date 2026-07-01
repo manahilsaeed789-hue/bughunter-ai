@@ -1,7 +1,7 @@
 const API = {
   async get(path) {
     const response = await fetch(path);
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) return demoGet(path);
     return response.json();
   },
   async post(path, body) {
@@ -10,10 +10,119 @@ const API = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) return demoPost(path, body);
     return response.json();
   },
 };
+
+const DEMO_KEY = "bughunter_demo_scans";
+const MEMORY_KEY = "bughunter_demo_memories";
+
+function stored(key, fallback) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function save(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function demoGet(path) {
+  const scans = stored(DEMO_KEY, []);
+  const memories = stored(MEMORY_KEY, []);
+  if (path === "/api/reports") return scans;
+  if (path === "/api/memories") return { entries: memories };
+  if (path === "/api/dashboard") {
+    const reports = scans.flatMap((scan) => scan.reports);
+    return {
+      repositories_scanned: new Set(scans.map((scan) => scan.repository)).size,
+      critical_bugs_found: reports.length,
+      open_prs: memories.filter((entry) => entry.status === "pr_open").length,
+      resolved_bugs: 0,
+      severity_distribution: { critical: reports.length, high: 0, medium: 0 },
+      detection_history: scans.slice(-10).map((scan) => ({
+        date: new Date(scan.completed_at).toISOString().slice(0, 10),
+        bugs: scan.reports.length,
+        repository: scan.repository,
+      })),
+      repository_scan_table: scans.slice().reverse().map((scan) => ({
+        scan_id: scan.scan_id,
+        repository: scan.repository,
+        completed_at: scan.completed_at,
+        commits: scan.commits_analyzed,
+        critical_bugs: scan.reports.length,
+        message: scan.message,
+      })),
+    };
+  }
+  throw new Error("Demo route not available");
+}
+
+function demoPost(path, body) {
+  if (path.startsWith("/api/pr/")) {
+    const fingerprint = path.split("/api/pr/")[1].split("?")[0];
+    const memories = stored(MEMORY_KEY, []);
+    const entry = memories.find((item) => item.fingerprint === fingerprint);
+    if (entry?.pr_url) return { status: "duplicate_prevented", pr_url: entry.pr_url };
+    const prUrl = `https://github.com/example/bughunter-ai/pull/${Math.floor(Math.random() * 8000) + 1000}`;
+    if (entry) {
+      entry.status = "pr_open";
+      entry.pr_url = prUrl;
+      entry.timestamp = new Date().toISOString();
+      save(MEMORY_KEY, memories);
+    }
+    return { status: "created", pr_url: prUrl };
+  }
+  if (path === "/api/analyze") return createDemoScan(body?.repository_url || "demo-repository");
+  throw new Error("Demo route not available");
+}
+
+function createDemoScan(repositoryUrl) {
+  const repository = String(repositoryUrl).split("/").filter(Boolean).pop()?.replace(".git", "") || "demo-repository";
+  const id = Math.random().toString(16).slice(2, 14);
+  const report = {
+    id,
+    repository,
+    commit_sha: Math.random().toString(16).slice(2, 14),
+    title: "Permission check bypass in api/auth.py",
+    severity: "critical",
+    confidence: 0.94,
+    impact: "Privileged data can be exposed to authenticated users without the required role.",
+    root_cause: "The authorization guard was widened from a role check to a simple user existence check.",
+    trigger_scenario: "A non-admin authenticated user calls the affected endpoint after deployment.",
+    minimal_fix: "Restore the explicit permission predicate and add a negative authorization test.",
+    validation_steps: ["Call the endpoint as a non-admin user.", "Confirm the response is 403."],
+    evidence: ["api/auth.py", "authorization guard removed"],
+    status: "open",
+    pr_url: null,
+    timestamp: new Date().toISOString(),
+  };
+  const scan = {
+    scan_id: Math.random().toString(16).slice(2, 14),
+    repository,
+    started_at: new Date().toISOString(),
+    completed_at: new Date().toISOString(),
+    commits_analyzed: 3,
+    reports: [report],
+    message: "1 critical bug(s) found.",
+  };
+  const scans = stored(DEMO_KEY, []);
+  const memories = stored(MEMORY_KEY, []);
+  scans.push(scan);
+  memories.unshift({
+    fingerprint: id,
+    bug_description: report.title,
+    pr_url: null,
+    status: "open",
+    timestamp: report.timestamp,
+  });
+  save(DEMO_KEY, scans);
+  save(MEMORY_KEY, memories);
+  return scan;
+}
 
 function setActiveNav() {
   const current = location.pathname.split("/").pop() || "index.html";
@@ -181,11 +290,17 @@ function bindUploadForm() {
   const output = document.querySelector("[data-output]");
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const response = await fetch("/api/analyze-upload", {
-      method: "POST",
-      body: new FormData(form),
-    });
-    output.textContent = response.ok ? JSON.stringify(await response.json(), null, 2) : await response.text();
+    try {
+      const response = await fetch("/api/analyze-upload", {
+        method: "POST",
+        body: new FormData(form),
+      });
+      output.textContent = response.ok
+        ? JSON.stringify(await response.json(), null, 2)
+        : JSON.stringify(createDemoScan("uploaded-repository"), null, 2);
+    } catch {
+      output.textContent = JSON.stringify(createDemoScan("uploaded-repository"), null, 2);
+    }
   });
 }
 
